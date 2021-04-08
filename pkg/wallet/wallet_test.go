@@ -12,17 +12,17 @@ func Test_FindAccountByID_success(t *testing.T) {
 			{
 				ID:      1,
 				Phone:   "992918632026",
-				Balance: 1000,
+				Balance: 1_000,
 			},
 			{
 				ID:      2,
 				Phone:   "992918632026",
-				Balance: 2000,
+				Balance: 2_000,
 			},
 			{
 				ID:      3,
 				Phone:   "992918632026",
-				Balance: 3000,
+				Balance: 3_000,
 			},
 		},
 	}
@@ -30,7 +30,7 @@ func Test_FindAccountByID_success(t *testing.T) {
 	expected := &types.Account{
 		ID:      2,
 		Phone:   "992918632026",
-		Balance: 2000,
+		Balance: 2_000,
 	}
 	account, err := svc.FindAccountById(2)
 
@@ -38,8 +38,8 @@ func Test_FindAccountByID_success(t *testing.T) {
 		t.Errorf("invalid result, expected: %v, actual %v", expected, account)
 	}
 
-	if expectedErr != err {
-		t.Errorf("invalid result, expected: %v, actual %v", expectedErr, err)
+	if exErr != err {
+		t.Errorf("invalid result, expected: %v, actual %v", exErr, err)
 	}
 }
 
@@ -49,17 +49,17 @@ func Test_FindAccountByID_accountNotFound(t *testing.T) {
 			{
 				ID:      1,
 				Phone:   "992918632026",
-				Balance: 1000,
+				Balance: 1_000,
 			},
 			{
 				ID:      2,
 				Phone:   "992918632026",
-				Balance: 2000,
+				Balance: 6_000,
 			},
 			{
 				ID:      3,
 				Phone:   "992918632026",
-				Balance: 3000,
+				Balance: 10_000,
 			},
 		},
 	}

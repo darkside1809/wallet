@@ -7,7 +7,7 @@ import (
 var ErrPhoneRegistered = errors.New("phone already registered")
 var ErrAmountMustBePositive = errors.New("amount must be greater than 0")
 var ErrAccountNotFound = errors.New("account not found")
-var expectedErr error = nil
+var exErr error = nil
 
 type Service struct {
 	nextAccountId 	int64
@@ -25,7 +25,7 @@ func (s *Service)FindAccountById(account int64) (*types.Account, error){
 			break
 		}
 	}
-	
+
 	if  accID == nil {
 		return nil, ErrAccountNotFound
 	}
