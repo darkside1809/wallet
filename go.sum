@@ -1,4 +1,2 @@
 github.com/darkside1809/bank/v2 v2.0.0 h1:ZWVLm+eDg0xFccrp+u5nKWvsjTRmBVA3MZFiVjuT4Fc=
 github.com/darkside1809/bank/v2 v2.0.0/go.mod h1:61owHI4yCGg3sj61m/lFp3Algf1T0FusZOPkCA8JMTo=
-github.com/google/uuid v1.2.0 h1:qJYtXnJRWmpe7m/3XlyhrsLrEURqHRM2kxzoxXqyUDs=
-github.com/google/uuid v1.2.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
