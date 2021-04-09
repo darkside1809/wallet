@@ -6,6 +6,9 @@ import (
 	"github.com/darkside1809/wallet/pkg/types"
 )
 
+func newTestService() *testService {
+	return &testService{Service: &Service{}}
+}
 func TestService_FindAccountByID_notFound(t *testing.T) {
 	svc := &Service{}
 
@@ -15,7 +18,7 @@ func TestService_FindAccountByID_notFound(t *testing.T) {
 		t.Error(err)
 	}
 }
-func Test_FindAccountByID_success(t *testing.T) {
+func TestService_FindAccountByID_success(t *testing.T) {
 	svc := &Service{
 		accounts: []*types.Account{
 			{
@@ -81,23 +84,44 @@ func TestService_FindPaymentByID_notFound(t *testing.T) {
 	}
 }
 
-func Test_Reject_success(t *testing.T) {
-	svc := &Service{}
+func TestService_Reject_success(t *testing.T) {
+	s := newTestService()
+	_, payments, err := s.addAcount(defaultTestAccount)
 
-	account, err := svc.RegisterAccount("992918632026")
-
-	if err == ErrPhoneRegistered {
-		t.Error(ErrPhoneRegistered)
+	if err != nil {
+		t.Error(err)
+		return
 	}
 
-	_, errPay := svc.Pay(account.ID, 1000, "auto")
+	payment := payments[0]
+	err = s.Reject(payment.ID)
 
-	if errPay != ErrNotEnoughBalance {
-		t.Error(ErrNotEnoughBalance)
+	if err != nil {
+		t.Errorf("Reject(): error = %v", err)
 	}
+
+	savedPayment, err := s.FindPaymentByID(payment.ID)
+	if err != nil {
+		t.Errorf("Reject(): cant't find payment by id, error = %v", err)
+	}
+
+	if savedPayment.Status != types.PaymentStatusFail {
+		t.Errorf("Reject(): status didn't changed, payment = %v", err)
+	}
+
+	savedAccount, err := s.FindAccountByID(payment.AccountID)
+
+	if err != nil {
+		t.Errorf("Reject(): cant't find account by id, error = %v", err)
+	}
+
+	if savedAccount.Balance != defaultTestAccount.balance {
+		t.Errorf("Reject(): balance didn't changed")
+	}
+
 
 }
-func Test_Reject_paymentNotFound(t *testing.T) {
+func TestService_Reject_paymentNotFound(t *testing.T) {
 	svc := &Service{}
 
 	account, err := svc.RegisterAccount("992918632026")
@@ -111,4 +135,44 @@ func Test_Reject_paymentNotFound(t *testing.T) {
 	if errPay != ErrNotEnoughBalance {
 		t.Error(ErrNotEnoughBalance)
 	}
+}
+
+func TestService_Repeat_success(t *testing.T) {
+
+	s := newTestService()
+
+	_, payments, err := s.addAcount(defaultTestAccount)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	payment := payments[0]
+	newPayment, err := s.Repeat(payment.ID)
+
+	if err != nil {
+		t.Errorf("Repeat(): error = %v", err)
+		return
+	}
+
+	if newPayment.AccountID != payment.AccountID {
+		t.Errorf("Repeat(): error = %v", err)
+		return
+	}
+
+	if newPayment.Amount != payment.Amount {
+		t.Errorf("Repeat(): error = %v", err)
+		return
+	}
+
+	if newPayment.Category != payment.Category {
+		t.Errorf("Repeat(): error = %v", err)
+		return
+	}
+
+	if newPayment.Status != payment.Status {
+		t.Errorf("Repeat(): error = %v", err)
+		return
+	}
+
 }
