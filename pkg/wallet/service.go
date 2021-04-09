@@ -115,7 +115,7 @@ func (s *Service)FindPaymentByID(paymentID string) (*types.Payment, error) {
 
 	for _, pay := range s.payments {
 		
-		if pay.ID == payment.ID {
+		if pay.ID == paymentID {
 			payment = pay
 			break
 		}
@@ -132,7 +132,7 @@ func (s *Service)Reject(paymentID string) error {
 	var payCheck *types.Payment
 
 	for _, paymentData := range s.payments {
-		if paymentID == payCheck.ID {
+		if paymentID == paymentData.ID {
 			payCheck = paymentData
 			break
 		}

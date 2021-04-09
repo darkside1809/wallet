@@ -57,7 +57,7 @@ func TestService_FindPaymentByID_success(t *testing.T) {
 	account, errorReg := svc.RegisterAccount("+992000000001")
 
 	if errorReg != nil {
-		t.Error(ErrPhoneRegistered)
+		t.Error("error on register account")
 	}
 
 	_, err := svc.Pay(account.ID, 1000, "auto")
@@ -66,8 +66,8 @@ func TestService_FindPaymentByID_success(t *testing.T) {
 		t.Error(ErrAmountMustBePositive)
 	}
 
-	if err != nil {
-		t.Error(ErrPaymentNotFound)
+	if err == nil {
+		t.Error("error on pay")
 	}
 }
 
