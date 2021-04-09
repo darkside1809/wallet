@@ -117,7 +117,35 @@ func Test_Reject_success(t *testing.T) {
 
 }
 
+func TestService_FindPaymentByID_success(t *testing.T) {
+	svc := &Service{}
 
+	account, errorReg := svc.RegisterAccount("+992000000001")
+
+	if errorReg != nil {
+		t.Error("error on register account")
+	}
+
+	_, err := svc.Pay(account.ID, 1000, "auto")
+
+	if err == ErrAmountMustBePositive {
+		t.Error(ErrAmountMustBePositive)
+	}
+
+	if err == nil {
+		t.Error("error on pay")
+	}
+}
+
+func TestService_FindPaymentByID_notFound(t *testing.T) {
+	svc := &Service{}
+
+	_, err := svc.FindPaymentByID("aaa")
+
+	if err != ErrPaymentNotFound {
+		t.Error("payment already exists")
+	}
+}
 func Test_Reject_paymentNotFound(t *testing.T) {
 	svc := &Service{}
 
