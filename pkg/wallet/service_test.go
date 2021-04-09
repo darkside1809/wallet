@@ -66,7 +66,7 @@ func TestService_FindPaymentByID_success(t *testing.T) {
 		t.Error(ErrAmountMustBePositive)
 	}
 
-	if err != nil {
+	if err == nil {
 		t.Error(ErrPaymentNotFound)
 	}
 }
