@@ -142,8 +142,8 @@ func TestService_FindPaymentByID_notFound(t *testing.T) {
 
 	_, err := svc.FindPaymentByID("aaa")
 
-	if err != ErrPaymentNotFound {
-		t.Error("payment already exists")
+	if err == ErrPaymentNotFound {
+		t.Error(ErrAccountNotFound)
 	}
 }
 func Test_Reject_paymentNotFound(t *testing.T) {
