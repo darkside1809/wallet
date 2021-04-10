@@ -1,10 +1,56 @@
 package wallet
 
 import (
+	"fmt"
 	"testing"
 	"reflect"
 	"github.com/darkside1809/wallet/pkg/types"
 )
+
+
+var defaultTestAccount = testAccount{
+	phone:   "+992938151007",
+	balance: 10_000_00,
+	payments: []struct {
+		amount   types.Money
+		category types.PaymentCategory
+	}{{
+		amount:   1000_00,
+		category: "auto",
+	}},
+}
+type testAccount struct {
+	phone 	types.Phone
+	balance 	types.Money
+	payments []struct {
+		amount	types.Money
+		category types.PaymentCategory
+	}
+}
+type testService struct {
+	*Service
+}
+func (s *testService) addAcount(data testAccount) (*types.Account, []*types.Payment, error) {
+	account, err := s.RegisterAccount(data.phone)
+	if err != nil {
+		return nil, nil, fmt.Errorf("cant register account %v = ", err)
+	}
+
+	err = s.Deposit(account.ID, data.balance)
+	if err != nil {
+		return nil, nil, fmt.Errorf("cant deposit account %v = ", err)
+	}
+
+	payments := make([]*types.Payment, len(data.payments))
+	for i, payment := range data.payments {
+		payments[i], err = s.Pay(account.ID, payment.amount, payment.category)
+		if err != nil {
+			return nil, nil, fmt.Errorf("cant make payment %v = ", err)
+		}
+	}
+
+	return account, payments, nil
+}
 
 func newTestService() *testService {
 	return &testService{Service: &Service{}}
