@@ -4,7 +4,7 @@ import (
 	"github.com/darkside1809/wallet/pkg/types"
 	"github.com/google/uuid"
 	"errors"
-	"fmt"
+
 )
 var ErrPhoneRegistered = errors.New("phone already registered")
 var ErrAmountMustBePositive = errors.New("amount must be greater than 0")
@@ -12,17 +12,6 @@ var ErrNotEnoughBalance = errors.New("not enought balance in account")
 var ErrAccountNotFound = errors.New("account not found")
 var ErrPaymentNotFound = errors.New("payment not found")
 var exErr error = nil
-var defaultTestAccount = testAccount{
-	phone:   "+992938151007",
-	balance: 10_000_00,
-	payments: []struct {
-		amount   types.Money
-		category types.PaymentCategory
-	}{{
-		amount:   1000_00,
-		category: "auto",
-	}},
-}
 
 type Service struct {
 	nextAccountID 	int64
@@ -30,17 +19,7 @@ type Service struct {
 	payments 		[]*types.Payment
 }
 
-type testAccount struct {
-	phone 	types.Phone
-	balance 	types.Money
-	payments []struct {
-		amount	types.Money
-		category types.PaymentCategory
-	}
-}
-type testService struct {
-	*Service
-}
+
 
 func (s *Service) RegisterAccount(phone types.Phone) (*types.Account, error) {
 	for _, account := range s.accounts {
@@ -176,28 +155,6 @@ func (s *Service)Reject(paymentID string) error {
 	payCheck.Status = types.PaymentStatusFail
 
 	return nil
-}
-
-func (s *testService) addAcount(data testAccount) (*types.Account, []*types.Payment, error) {
-	account, err := s.RegisterAccount(data.phone)
-	if err != nil {
-		return nil, nil, fmt.Errorf("cant register account %v = ", err)
-	}
-
-	err = s.Deposit(account.ID, data.balance)
-	if err != nil {
-		return nil, nil, fmt.Errorf("cant deposit account %v = ", err)
-	}
-
-	payments := make([]*types.Payment, len(data.payments))
-	for i, payment := range data.payments {
-		payments[i], err = s.Pay(account.ID, payment.amount, payment.category)
-		if err != nil {
-			return nil, nil, fmt.Errorf("cant make payment %v = ", err)
-		}
-	}
-
-	return account, payments, nil
 }
 
 func (s *Service) Repeat(paymentID string) (*types.Payment, error) {
