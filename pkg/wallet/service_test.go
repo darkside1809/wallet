@@ -30,7 +30,7 @@ type testAccount struct {
 type testService struct {
 	*Service
 }
-func (s *testService) addAcount(data testAccount) (*types.Account, []*types.Payment, error) {
+func (s *testService) addAccount(data testAccount) (*types.Account, []*types.Payment, error) {
 	account, err := s.RegisterAccount(data.phone)
 	if err != nil {
 		return nil, nil, fmt.Errorf("cant register account %v = ", err)
@@ -129,7 +129,7 @@ func TestService_FindPaymentByID_notFound(t *testing.T) {
 
 func TestService_Reject_success(t *testing.T) {
 	s := newTestService()
-	_, payments, err := s.addAcount(defaultTestAccount)
+	_, payments, err := s.addAccount(defaultTestAccount)
 
 	if err != nil {
 		t.Error(err)
@@ -181,41 +181,29 @@ func TestService_Reject_paymentNotFound(t *testing.T) {
 }
 
 func TestService_Repeat_success(t *testing.T) {
-
 	s := newTestService()
-
-	_, payments, err := s.addAcount(defaultTestAccount)
+	_, payments, err := s.addAccount(defaultTestAccount)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
 	payment := payments[0]
-	newPayment, err := s.Repeat(payment.ID)
-
+	newPayment, nil := s.Repeat(payment.ID)
 	if err != nil {
-		t.Errorf("Repeat(): error = %v", err)
+		t.Error(err)
 		return
 	}
 
-	if newPayment.AccountID != payment.AccountID {
-		t.Errorf("Repeat(): error = %v", err)
+	if payment.ID == newPayment.ID {
+		t.Error("repeated payment id not different")
 		return
 	}
 
-	if newPayment.Amount != payment.Amount {
-		t.Errorf("Repeat(): error = %v", err)
-		return
+	if payment.AccountID != newPayment.AccountID ||
+		payment.Status != newPayment.Status ||
+		payment.Category != newPayment.Category ||
+		payment.Amount != newPayment.Amount {
+		t.Error("some field is not equal the original")
 	}
-
-	if newPayment.Category != payment.Category {
-		t.Errorf("Repeat(): error = %v", err)
-		return
-	}
-
-	if newPayment.Status != payment.Status {
-		t.Errorf("Repeat(): error = %v", err)
-		return
-	}
-
 }
