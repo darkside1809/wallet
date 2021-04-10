@@ -45,7 +45,6 @@ func TestService_FindAccountByID_success(t *testing.T) {
 		Balance: 2_000,
 	}
 	account, err := svc.FindAccountByID(2)
-
 	if !reflect.DeepEqual(expected, account) {
 		t.Errorf("invalid result, expected: %v, actual %v", expected, account)
 	}
@@ -62,9 +61,7 @@ func TestService_FindPaymentByID_success(t *testing.T) {
 	if errorReg != nil {
 		t.Error("error on register account")
 	}
-
 	_, err := svc.Pay(account.ID, 1000, "auto")
-
 	if err == ErrAmountMustBePositive {
 		t.Error(ErrAmountMustBePositive)
 	}
