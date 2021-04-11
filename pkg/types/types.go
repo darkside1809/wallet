@@ -20,6 +20,13 @@ type Payment struct {
 	Category  PaymentCategory
 	Status    PaymentStatus
 }
+type Favorite struct {
+	ID        	string
+	AccountID 	int64
+	Name 			string	
+	Amount    	Money
+	Category  	PaymentCategory
+}
 
 type Phone string
 
