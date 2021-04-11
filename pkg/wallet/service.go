@@ -171,10 +171,10 @@ func (s *Service)	PayFromFavorite(favoriteID string) (*types.Payment, error) {
 			favPayment = payments
 			break
 		}
-		
-		if favPayment == nil {
+	}
+	
+	if favPayment == nil {
 			return nil, ErrFavoriteNotFound
-		}
 	}
 
 	payment, err := s.Pay(favPayment.AccountID, favPayment.Amount, favPayment.Category)
