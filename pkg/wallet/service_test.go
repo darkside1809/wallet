@@ -35,6 +35,7 @@ type testService struct {
 func newTestService() *testService {
 	return &testService{Service: &Service{}}
 }
+
 func (s *testService) addAccount(data testAccount) (*types.Account, []*types.Payment, error) {
 	account, err := s.RegisterAccount(data.phone)
 	if err != nil {

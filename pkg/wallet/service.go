@@ -4,6 +4,12 @@ import (
 	"errors"
 	"github.com/darkside1809/wallet/pkg/types"
 	"github.com/google/uuid"
+	"io"
+	"os"
+	"log"
+	"strconv"
+	"strings"
+
 )
 
 var ErrPhoneRegistered = errors.New("phone already registered")
@@ -16,12 +22,13 @@ var exErr = errors.New("doesn't match to expected")
 
 type Service struct {
 	nextAccountID	int64
-	accounts		[]*types.Account
-	payments		[]*types.Payment
-	favorites	[]*types.Favorite
+	accounts			[]*types.Account
+	payments			[]*types.Payment
+	favorites		[]*types.Favorite
 }
 
 func (s *Service) RegisterAccount(phone types.Phone) (*types.Account, error) {
+
 	for _, account := range s.accounts {
 		if account.Phone == phone {
 			return nil, ErrPhoneRegistered
@@ -30,12 +37,13 @@ func (s *Service) RegisterAccount(phone types.Phone) (*types.Account, error) {
 
 	s.nextAccountID++
 	account := &types.Account{
-		ID: 		s.nextAccountID,
+		ID: 			s.nextAccountID,
 		Phone: 		phone,
 		Balance: 	0,
 	}
 
 	s.accounts = append(s.accounts, account)
+
 	return account, nil
 }
 
@@ -74,9 +82,9 @@ func (s *Service) Pay(accountID int64, amount types.Money, category types.Paymen
 	payment := &types.Payment{
 		ID:			paymentID,
 		AccountID: 	accountID,
-		Amount: 	amount,
+		Amount: 		amount,
 		Category: 	category,
-		Status: 	types.PaymentStatusInProgress,
+		Status: 		types.PaymentStatusInProgress,
 	}
 
 	s.payments = append(s.payments, payment)
@@ -153,7 +161,7 @@ func (s *Service) FavoritePayment(paymentID string, name string) (*types.Favorit
 		ID:			uuid.New().String(),
 		AccountID: 	payment.AccountID,
 		Name: 		name,
-		Amount: 	payment.Amount,
+		Amount: 		payment.Amount,
 		Category: 	payment.Category,
 	}
 
@@ -182,3 +190,75 @@ func (s *Service) PayFromFavorite(favoriteID string) (*types.Payment, error) {
 
 	return payment, nil
 }
+
+func (s *Service) ExportToFile(path string) error {
+	content := make([]byte, 0)
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		err := file.Close()
+		if err != nil {
+			log.Print(err)
+		}
+	} ()
+
+	for _, account := range s.accounts {
+		content = append(content, []byte(strconv.FormatInt(account.ID, 10))...)
+		content = append(content, []byte(";")...)
+		content = append(content, []byte(account.Phone)...)
+		content = append(content, []byte(";")...)
+		content = append(content, []byte(strconv.FormatInt(int64(account.Balance), 10))...)
+		content = append(content, []byte("|")...)
+	}
+
+	_, err = file.Write(content)
+	if err != nil {
+		log.Print(err)
+		return err
+	}
+	return nil
+
+}
+func (s *Service) ImportFromFile(path string) error {
+	content := make([]byte, 0)
+	buf := make([]byte, 4)
+
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		err := file.Close()
+		if err != nil {
+			log.Print(err)
+		}
+	} ()
+	
+	for {
+		read, err := file.Read(buf)
+		if err == io.EOF {
+			content = append(content, buf[:read]...)
+			break
+		}
+
+		content = append(content, buf[:read]...)
+	}
+
+	log.Print(string(content))
+
+	for _, rows := range strings.Split(string(content), "|") {
+		columns := strings.Split(rows, ";")
+		if len(columns) == 3 {
+			s.RegisterAccount(types.Phone(columns[1]))
+		}
+	}
+	for _, account := range s.accounts {
+		log.Print(account)
+	}
+
+	return nil
+} 
