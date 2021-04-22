@@ -14,7 +14,17 @@ func main() {
 	// 	log.Print(err)
 	// }
 
-	err := svc.ImportFromFile("accounts.txt")
+	// err := svc.ImportFromFile("accounts.txt")
+	// if err != nil {
+	// 	log.Print(err)
+	// }
+
+	// err := svc.Export("data")
+	// if err != nil {
+	// 	log.Print(err)
+	// }
+
+	err := svc.Import("data")
 	if err != nil {
 		log.Print(err)
 	}
