@@ -7,7 +7,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-
 	"github.com/darkside1809/wallet/pkg/types"
 	"github.com/google/uuid"
 )
@@ -18,6 +17,7 @@ var ErrAccountNotFound = errors.New("account not found")
 var ErrPaymentNotFound = errors.New("payment not found")
 var ErrNotEnoughBalance = errors.New("account balance least then amount")
 var ErrFavoriteNotFound = errors.New("favorite payment not found")
+var ErrMinRecords = errors.New("write at least 1 record")
 var exErr = errors.New("doesn't match to expected")
 
 type Service struct {
@@ -498,4 +498,78 @@ func (s *Service) Import(dir string) error {
 	}
 	}
 	return nil
+}
+
+func (s *Service) ExportAccountHistory(accountID int64) ([]types.Payment, error) {
+	accPayments := []types.Payment{}
+
+	for _, payments := range s.payments {
+		if accountID == payments.AccountID {
+			accPayments = append(accPayments, *payments)
+		}
+	}
+
+	if len(accPayments) == 0 {
+		return accPayments, ErrAccountNotFound
+	}
+
+	return accPayments, nil
+}
+
+func (s *Service) HistoryToFiles(payments []types.Payment, dir string, records int) error {
+	if records <= 0 {
+		return ErrMinRecords
+	}
+
+	path := dir + "/payments.dump"
+	res := ""
+	if len(payments) > 0 && len(payments) <= records {
+		for _, payment := range s.payments {
+			content := string(payment.ID) + ";" + strconv.FormatInt(payment.AccountID, 10) + ";" +strconv.FormatInt(int64(payment.Amount),10) + ";" +string(payment.Category)+ ";" +string(payment.Status) + "\r\n"
+			res += content
+		}
+		file, err := os.Create(path)
+		if err != nil {
+			log.Print(err)
+		}
+		defer func() {
+			err := file.Close()
+			if err != nil {
+				log.Print(err)
+			}
+		}()
+		_, err1 := file.Write([]byte(res))
+		if err1 != nil {
+			log.Print(err)
+		}
+		return nil
+
+	} else {
+
+		var i, j int = 1, 0
+		for _, payment := range payments {
+			content := string(payment.ID) + ";" + strconv.FormatInt(payment.AccountID, 10) + ";" +strconv.FormatInt(int64(payment.Amount),10) + ";" +string(payment.Category) + ";" + string(payment.Status) + "\r\n"
+			res += content
+			if j == 0 {
+				path := dir + "/payments" + strconv.Itoa(i) + ".dump"
+				file, err := os.Create(path)
+				if err != nil {
+					log.Print(err)
+				}
+				_, err2 := file.Write([]byte(res))
+				if err2 != nil {
+					log.Print(err)
+				}
+				file.Close()
+			}
+			j++
+
+			if j == records {
+				i++
+				j = 0 
+				res = ""
+			}
+		}
+		return nil
+	}	
 }
