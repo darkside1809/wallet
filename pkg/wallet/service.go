@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"github.com/darkside1809/wallet/pkg/types"
 	"github.com/google/uuid"
 )
@@ -26,6 +27,7 @@ type Service struct {
 	payments			[]*types.Payment
 	favorites		[]*types.Favorite
 }
+
 
 func (s *Service) RegisterAccount(phone types.Phone) (*types.Account, error) {
 
@@ -520,7 +522,7 @@ func (s *Service) HistoryToFiles(payments []types.Payment, dir string, records i
 	if records <= 0 {
 		return ErrMinRecords
 	}
-
+	
 	path := dir + "/payments.dump"
 	res := ""
 	if len(payments) > 0 && len(payments) <= records {
@@ -572,4 +574,240 @@ func (s *Service) HistoryToFiles(payments []types.Payment, dir string, records i
 		}
 		return nil
 	}	
+}
+
+func (s *Service) SumPayments(goroutines int) types.Money {
+	value := 0
+
+	if goroutines == 0 {
+		value = len(s.payments)
+	} else {
+		value = int(len(s.payments) / goroutines)
+	}
+
+	sum := int64(0)
+	i := 0
+	wg := sync.WaitGroup{}
+	mu := sync.Mutex{}
+
+	for i = 0; i < goroutines - 1; i++ {
+		wg.Add(1)
+		go func(index int) {
+			defer wg.Done()
+			val := int64(0)
+			pays := s.payments[index * value : (index + 1) * value]
+			for _, payment := range pays {
+				val += int64(payment.Amount)
+			}
+			mu.Lock()
+			sum += val
+			mu.Unlock()
+
+		}(i)
+	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		val := int64(0)
+		pays:= s.payments[i * value:]
+		for _, payment := range pays {
+			val += int64(payment.Amount)
+		}
+		mu.Lock()
+		sum += val
+		mu.Unlock()
+
+	}()
+	wg.Wait()
+	return types.Money(sum)
+}
+
+func (s *Service) FilterPayments(accountID int64, goroutines int) ([]types.Payment, error) {
+	payments := []types.Payment{}
+	account, err := s.FindAccountByID(accountID)
+
+	if err != nil {
+		return nil, ErrAccountNotFound
+	}
+	wg := sync.WaitGroup{}
+	mutex := sync.Mutex{}
+	i := 0
+	counter := 0
+
+	if goroutines == 0 {
+		counter = len(s.payments)
+	} else {
+		counter = int(len(s.payments) / goroutines)
+	}
+
+	for i = 0; i < goroutines - 1 ; i++ {
+		wg.Add(1)
+		go func(index int) {
+			defer wg.Done()
+			pays := []types.Payment{}
+			allPayments := s.payments[index * counter : (index + 1) * counter]
+			for _, p := range allPayments {
+				if p.AccountID == account.ID {
+					pays = append(pays, types.Payment{
+						ID: 		  p.ID,
+						AccountID: p.AccountID,
+						Amount:    p.Amount,
+						Category:  p.Category,
+						Status:    p.Status,
+					})
+				}
+			}
+			mutex.Lock()
+			payments = append(payments, pays...)
+			mutex.Unlock()
+		}(i)
+	}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		var pays []types.Payment
+		allPayments := s.payments[i * counter:]
+		for _, p := range allPayments {
+			if p.AccountID == account.ID {
+				pays = append(pays, types.Payment{
+					ID:        p.ID,
+					AccountID: p.AccountID,
+					Amount:    p.Amount,
+					Category:  p.Category,
+					Status:    p.Status,
+				})
+			}
+		}
+		mutex.Lock()
+		payments = append(payments, pays...)
+		mutex.Unlock()
+
+	}()
+
+
+	wg.Wait()
+	if len(payments) == 0 {
+		return nil, nil
+	}
+	return payments, nil
+}
+
+func (s *Service) FilterPaymentsByFn(filter func(payment types.Payment) bool, goroutines int,) ([]types.Payment, error){
+		count := 0
+		i := 0
+
+		if goroutines == 0{
+			count = len(s.payments)
+		} else {
+			count = int(len(s.payments)/goroutines)
+		}
+		wg := sync.WaitGroup{}
+		mu := sync.Mutex{}
+		result := []types.Payment{}
+
+		for i = 0; i <= goroutines - 1; i++{
+			wg.Add(1)
+			go func(number int){
+				defer wg.Done()
+				var pay []types.Payment
+				payments:= s.payments[count * number : (count)  *(number + 1)]
+				for _, payment := range payments{
+						pays := types.Payment{
+							ID: 			payment.ID,
+							AccountID: 	payment.AccountID,
+							Amount: 		payment.Amount,
+							Category: 	payment.Category,
+							Status: 		payment.Status,
+						}
+						if filter(pays) {
+							pay = append(pay, pays)
+						}				
+				}
+				mu.Lock()
+				result=append(result, pay...)
+				mu.Unlock()
+			}(i)
+		}
+		wg.Add(1)
+		go func(){
+			defer wg.Done()
+			var pay []types.Payment
+			payments := s.payments[i*count:]
+			for _, payment:= range payments{
+					pays := types.Payment{
+						ID: 			payment.ID,
+						AccountID: 	payment.AccountID,
+						Amount:		payment.Amount,
+						Category: 	payment.Category,
+						Status: 		payment.Status,
+					}
+					if filter(pays) {
+						pay = append(pay, pays)
+					}	
+			}
+			mu.Lock()
+			result = append(result, pay...)
+			mu.Unlock()
+		}()
+
+		wg.Wait()
+		if len(result) == 0 {
+			return nil, ErrAccountNotFound
+		}
+
+		return result, nil
+}
+
+func (s *Service) SumPaymentsWithProgress() <-chan types.Progress {
+	channel := make(chan types.Progress)
+	wg := sync.WaitGroup{}
+
+	number := 100_000
+	i := 0
+
+	goroutines := int(len(s.payments) / number)
+	if goroutines < 1 {
+		goroutines = 1
+		number = len(s.payments)
+	}
+	if goroutines > 1 {
+		for i = 0; i <= goroutines - 1; i++ {
+			wg.Add(1)
+			go func(ch chan <- types.Progress, num int) {
+				sum := types.Money(0)
+				defer wg.Done()
+				pays := s.payments[number * num : number * (num + 1)]
+				
+				for _, payment := range pays {
+					sum += payment.Amount
+				}
+				ch <- types.Progress{
+					Part: len(s.payments),
+					Result: sum,
+				}
+			}(channel, i)
+		}
+	}
+	wg.Add(1)
+	go func (ch chan <- types.Progress) {
+		sum := types.Money(0)
+		defer wg.Done()
+		payments := s.payments[number * i:]
+		for _, payment := range payments {
+			sum += payment.Amount
+		}
+		ch <- types.Progress{
+			Part: len(s.payments),
+			Result: sum,
+		}
+
+	}(channel)
+
+	go func() {
+		defer close(channel)
+		wg.Wait()
+	}()
+	
+	return channel
 }

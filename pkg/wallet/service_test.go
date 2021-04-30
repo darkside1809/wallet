@@ -2,8 +2,10 @@ package wallet
 
 import (
 	"fmt"
-	"testing"
+	"log"
 	"reflect"
+	"testing"
+	"sort"
 	"github.com/darkside1809/wallet/pkg/types"
 	"github.com/google/uuid"
 )
@@ -260,4 +262,211 @@ func TestService_PayFromFavorite_fail(t *testing.T) {
 	if err == nil {
 		t.Error("PayFromFavorite(): must be error, now returned nil")
 	}
+}
+func TestServiceExportToFile(t *testing.T) {
+	s := newTestService()
+
+	err := s.ExportToFile("export.txt")
+	if err != nil {
+		t.Error("ExportToFile(): cannot export data")
+	}
+}
+func TestService_ImportFromFile_success(t *testing.T) {
+	s := newTestService()
+
+	err := s.ImportFromFile("export.txt")
+
+	if err != nil {
+		t.Errorf("method ImportFromFile return err, err: %v", err)
+	}
+
+}
+
+func TestService_Import_success(t *testing.T) {
+	s := newTestService()
+	err := s.ImportFromFile("export.txt")
+
+	if err != nil {
+		t.Errorf("method Import returned not nil error, err => %v", err)
+	}
+
+}
+
+func TestService_Export_success(t *testing.T) {
+	s := newTestService()
+
+	s.RegisterAccount("+992000000001")
+
+
+	err := s.Export("data")
+	if err != nil {
+		t.Errorf("method ExportToFile returned not nil error, err => %v", err)
+	}
+
+	err = s.Import("data")
+	if err != nil {
+		t.Errorf("method ExportToFile returned not nil error, err => %v", err)
+	}
+}
+
+func TestService_ExportHistory_success(t *testing.T) {
+	s := newTestService()
+
+	account, err := s.RegisterAccount("+992000000001")
+
+	if err != nil {
+		t.Errorf("method RegisterAccount returned not nil error, account => %v", account)
+	}
+
+	err = s.Deposit(account.ID, 100_00)
+	if err != nil {
+		t.Errorf("method Deposit returned not nil error, error => %v", err)
+	}
+
+	_, err = s.Pay(account.ID, 1, "car")
+
+	if err != nil {
+		t.Errorf("method Pay returned not nil error, err => %v", err)
+	}
+
+	payments, err := s.ExportAccountHistory(account.ID)
+
+	if err != nil {
+		t.Errorf("method ExportAccountHistory returned not nil error, err => %v", err)
+	}
+	err = s.HistoryToFiles(payments, "data", 4)
+
+	if err != nil {
+		t.Errorf("method HistoryToFiles returned not nil error, err => %v", err)
+	}
+
+} 
+
+func BenchmarkSumPayments(b *testing.B){
+	svc := Service{}
+	account, err := svc.RegisterAccount("+9921283793")
+
+	if err != nil {
+		b.Errorf("method RegisterAccount returned not nil error, account => %v", account)
+	}
+
+	err = svc.Deposit(account.ID, 100_00)
+	if err != nil {
+		b.Errorf("method Deposit returned not nil error, error => %v", err)
+	}
+
+	_, err = svc.Pay(account.ID, 1, "Cafe")
+
+
+	if err != nil {
+		b.Errorf("method Pay returned not nil error, err => %v", err)
+	}
+	want := types.Money(1)
+
+	got := svc.SumPayments(2)
+	if want != got{
+		b.Errorf("want: %v got: %v", want, got)
+	}
+
+} 
+
+func BenchmarkFilterPayments(b *testing.B) {
+	s := newTestService()
+  
+	account, err := s.RegisterAccount("+992000000000")
+	if err != nil {
+	  b.Error(err)
+	}
+	for i := 0; i < 103; i++ {
+	  s.payments = append(s.payments, &types.Payment{AccountID: account.ID, Amount: 1})
+	}
+  
+	result := 103
+  
+	for i := 0; i < b.N; i++ {
+		payments, err := s.FilterPayments(account.ID, result)
+	  	if err != nil {
+			b.Error(err)
+		}
+  
+	  	if result != len(payments) {
+			b.Fatalf("wrong result, got %v, want %v", len(payments), result)
+	 	}
+	}
+}
+
+func filter(payment types.Payment) bool {
+	return payment.Amount <= 540
+}
+
+func BenchmarkService_FilterPaymentsByFn(b *testing.B) {
+	s := newTestService()
+
+	account, err := s.RegisterAccount("+99212312133")
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	err = s.Deposit(account.ID, 100_000)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	for i := 0; i < 7; i++ {
+		_, err = s.Pay(account.ID, types.Money(i * 10 + 500), "car")
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+
+	want := make([]types.Payment, 0)
+
+	for _, payment := range s.payments {
+		if filter(*payment) {
+			want = append(want, *payment)
+		}
+	}
+
+	for i := 0; i < b.N; i++ {
+		result, err := s.FilterPaymentsByFn(filter, i)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		sort.Slice(want, func (i, j int) bool {
+			return want[i].ID < want[j].ID
+		})
+
+		sort.Slice(result, func (i, j int) bool {
+			return result[i].ID < result[j].ID
+		})
+
+		if !reflect.DeepEqual(want, result) {
+			b.Fatalf("invalid result, want %v, got %v", want, result)
+		}
+	}
+}
+
+func BenchmarkSumPaymentsWithProgress(b *testing.B) {
+	var svc Service
+	account, err := svc.RegisterAccount("992918532322")
+	if err != nil {
+		b.Errorf("Acc already registered %v", ErrPhoneRegistered)
+	}
+	err = svc.Deposit(account.ID, 100_000000000000)
+	if err != nil {
+		b.Errorf("Acc already registered %v", ErrPhoneRegistered)
+	}
+	for i := types.Money(1); i <= 100_000; i++ {
+		_, err := svc.Pay(account.ID, i, "house")
+		if  err != nil {
+			b.Errorf("something went wrong %v", err)
+		}
+	}
+	ch := svc.SumPaymentsWithProgress()
+	s, got := <-ch
+	if  !got {
+		b.Errorf("got => %v", got)
+	}
+	log.Println(s)
 }

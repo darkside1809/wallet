@@ -35,3 +35,7 @@ type Account struct {
 	Phone   Phone
 	Balance Money
 }
+type Progress struct {
+	Part 		int
+	Result	Money
+}
